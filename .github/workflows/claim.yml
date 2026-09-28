@@ -1,0 +1,53 @@
+name: Claim issue
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+
+jobs:
+  claim:
+    if: github.event.issue.pull_request == null
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const body = (context.payload.comment.body || "").trim().toLowerCase();
+            if (body !== "claim") return;
+
+            const issueNumber = context.payload.issue.number;
+            const commenter = context.payload.comment.user.login;
+            const assignees = (context.payload.issue.assignees || []).map((user) => user.login);
+
+            async function reply(text) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: text,
+              });
+            }
+
+            if (assignees.includes(commenter)) {
+              await reply("You already have this issue.");
+              return;
+            }
+
+            if (assignees.length > 0) {
+              await reply(`This issue is already assigned to @${assignees[0]}.`);
+              return;
+            }
+
+            await github.rest.issues.addAssignees({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              assignees: [commenter],
+            });
+
+            await reply(
+              "Congratulations on getting this issue. Please raise a PR within 72 hours, and please star the repo."
+            );

@@ -1,6 +1,8 @@
 # Contributing
 
-I assign the work. If there is no issue with your name on it, ask before you start. Small fixes for a typo or a broken seed are fine as a PR without an issue.
+Comment `claim` on an open issue that has no assignee. That assigns it to you. One issue at a time. Open the PR within 72 hours.
+
+If there is no issue with your name on it, don't start. Small fixes for a typo or a broken seed are fine as a PR without an issue.
 
 ## Branch
 
