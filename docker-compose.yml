@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: messline-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: messline
+      POSTGRES_PASSWORD: messline
+      POSTGRES_DB: messline
+    ports:
+      - "5434:5432"
+    volumes:
+      - messline_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U messline -d messline"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  messline_pg:
