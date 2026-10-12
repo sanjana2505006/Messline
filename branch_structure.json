@@ -1,0 +1,18 @@
+{
+  "default_branch": "main",
+  "branches": [
+    "docs/contributing-good-first-issue",
+    "main",
+    "origin"
+  ],
+  "parent": {
+    "docs/contributing-good-first-issue": "main",
+    "main": null,
+    "origin": "main"
+  },
+  "order": [
+    "main",
+    "docs/contributing-good-first-issue",
+    "origin"
+  ]
+}

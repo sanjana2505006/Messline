@@ -4,6 +4,10 @@ Comment `claim` on an open issue that has no assignee. That assigns it to you. O
 
 If there is no issue with your name on it, don't start. Small fixes for a typo or a broken seed are fine as a PR without an issue.
 
+## Good first issues
+
+New here? Start with an issue labeled `good first issue`. Comment on it before you start so it's claimed. If someone has already said they're taking it, leave it and pick another.
+
 ## Branch
 
 `feat/short-name`, `fix/short-name`, or `chore/short-name`.
