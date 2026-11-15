@@ -34,43 +34,107 @@ export async function bookPlates(
 
   try {
     const booking = await prisma.$transaction(async (tx) => {
-      // 1. The offering must exist, its service must be published,
-      //    and the cutoff must not have passed.
-      const offering = await tx.offering.findUnique({
-        where: { id: offeringId },
-        select: { service: { select: { published: true, cutoffAt: true } } },
+      // 1. Acquire an exclusive row lock on the Offering inside the interactive transaction.
+      // Any competing transaction attempting to book or modify this offering will wait here.
+      const lockedOffering = await tx.$queryRaw<
+        Array<{
+          id: string;
+          serviceId: string;
+          quantityTotal: number;
+          quantityLeft: number;
+        }>
+      >`
+        SELECT id, "serviceId", "quantityTotal", "quantityLeft"
+        FROM "Offering"
+        WHERE id = ${offeringId}
+        FOR UPDATE
+      `;
+
+      if (lockedOffering.length === 0) throw new BookingError("NOT_FOUND");
+      const offering = lockedOffering[0];
+
+      // 2. Once the lock is acquired, execute a separate database query to check the service
+      // status and evaluate cutoff against PostgreSQL clock_timestamp() (the actual current
+      // database wall-clock time), NOT NOW() (which is fixed at transaction start).
+      const serviceCheck = await tx.$queryRaw<
+        Array<{
+          published: boolean;
+          is_open: boolean;
+        }>
+      >`
+        SELECT
+          published,
+          (clock_timestamp() < "cutoffAt") AS is_open
+        FROM "Service"
+        WHERE id = ${offering.serviceId}
+      `;
+
+      if (serviceCheck.length === 0) throw new BookingError("NOT_FOUND");
+      const service = serviceCheck[0];
+
+      if (!service.published) throw new BookingError("NOT_PUBLISHED");
+      if (!service.is_open) throw new BookingError("CUTOFF_PASSED");
+
+      // 3. Check for an existing BOOKED record for this user and offering.
+      // Since the offering row is locked, concurrent transactions for the same student & offering
+      // serialize here and observe the committed state.
+      const existing = await tx.booking.findFirst({
+        where: { userId, offeringId, status: BookingStatus.BOOKED },
+        select: { id: true, count: true },
       });
-      if (!offering) throw new BookingError("NOT_FOUND");
-      if (!offering.service.published) throw new BookingError("NOT_PUBLISHED");
-      if (new Date() >= offering.service.cutoffAt) {
-        throw new BookingError("CUTOFF_PASSED");
+
+      if (!existing) {
+        // A. New booking:
+        // Conditional decrement: UPDATE Offering SET quantityLeft = quantityLeft - plates WHERE id = offeringId AND quantityLeft >= plates
+        const updated = await tx.offering.updateMany({
+          where: { id: offeringId, quantityLeft: { gte: plates } },
+          data: { quantityLeft: { decrement: plates } },
+        });
+        if (updated.count === 0) throw new BookingError("SOLD_OUT");
+
+        return tx.booking.create({
+          data: { userId, offeringId, count: plates, status: BookingStatus.BOOKED },
+          select: { id: true },
+        });
       }
 
-      // 2. The conditional update from docs/rules.md:
-      //    UPDATE "Offering" SET "quantityLeft" = "quantityLeft" - $count
-      //    WHERE id = $id AND "quantityLeft" >= $count
-      //    Zero rows updated means sold out, and no booking is created.
-      const updated = await tx.offering.updateMany({
-        where: { id: offeringId, quantityLeft: { gte: plates } },
-        data: { quantityLeft: { decrement: plates } },
-      });
-      if (updated.count === 0) throw new BookingError("SOLD_OUT");
+      // B. Existing booking modification:
+      const delta = plates - existing.count;
 
-      // 3. One open booking per student per offering. This runs after the
-      //    update on purpose: the update locks the offering row, so a
-      //    concurrent request from the same student waits for the lock and
-      //    then sees the first booking. Throwing rolls the decrement back.
-      const existing = await tx.booking.findFirst({
-        where: { userId, offeringId, status: "BOOKED" },
-        select: { id: true },
-      });
-      if (existing) throw new BookingError("ALREADY_BOOKED");
+      if (delta === 0) {
+        return existing;
+      }
 
-      // 4. Create the booking.
-      return tx.booking.create({
-        data: { userId, offeringId, count: plates, status: "BOOKED" },
-        select: { id: true },
-      });
+      if (delta > 0) {
+        // C. Increasing plate count:
+        // Must reserve delta more plates.
+        const updated = await tx.offering.updateMany({
+          where: { id: offeringId, quantityLeft: { gte: delta } },
+          data: { quantityLeft: { decrement: delta } },
+        });
+        if (updated.count === 0) throw new BookingError("SOLD_OUT");
+
+        return tx.booking.update({
+          where: { id: existing.id },
+          data: { count: plates },
+          select: { id: true },
+        });
+      } else {
+        // D. Decreasing plate count (delta < 0):
+        // Release plates back to inventory, capped at quantityTotal using PostgreSQL LEAST().
+        const releaseCount = Math.abs(delta);
+        await tx.$executeRaw`
+          UPDATE "Offering"
+          SET "quantityLeft" = LEAST("quantityLeft" + ${releaseCount}, "quantityTotal")
+          WHERE id = ${offeringId}
+        `;
+
+        return tx.booking.update({
+          where: { id: existing.id },
+          data: { count: plates },
+          select: { id: true },
+        });
+      }
     });
 
     return { ok: true, bookingId: booking.id };
@@ -132,9 +196,10 @@ export async function cancelBooking(
   }
 
   return prisma.$transaction(async (tx) => {
+    // 1. First locate the booking to find the associated offeringId.
     const booking = await tx.booking.findUnique({
       where: { id: parsed.data.bookingId },
-      include: { offering: { include: { service: true } } },
+      select: { id: true, userId: true, offeringId: true, status: true, count: true },
     });
 
     // Same error for "missing" and "someone else's", so ids can't be probed.
@@ -149,6 +214,41 @@ export async function cancelBooking(
       );
     }
 
+    // 2. Lock the Offering row first to ensure consistent lock acquisition order
+    // across both bookPlates() and cancelBooking() (Offering -> Booking/Inventory).
+    const lockedOffering = await tx.$queryRaw<
+      Array<{
+        id: string;
+        serviceId: string;
+        quantityTotal: number;
+        quantityLeft: number;
+      }>
+    >`
+      SELECT id, "serviceId", "quantityTotal", "quantityLeft"
+      FROM "Offering"
+      WHERE id = ${booking.offeringId}
+      FOR UPDATE
+    `;
+
+    if (lockedOffering.length === 0) {
+      throw new CancelBookingError("NOT_FOUND", "Offering not found.");
+    }
+
+    // 3. Atomically check service cutoff using database clock_timestamp() post-lock.
+    const serviceCheck = await tx.$queryRaw<
+      Array<{
+        is_before_cutoff: boolean;
+      }>
+    >`
+      SELECT
+        (clock_timestamp() < "cutoffAt") AS is_before_cutoff
+      FROM "Service"
+      WHERE id = ${lockedOffering[0].serviceId}
+    `;
+
+    const beforeCutoff = serviceCheck.length > 0 && serviceCheck[0].is_before_cutoff;
+
+    // 4. Update the booking status.
     // The status check sits in the WHERE clause, so if two cancels for the
     // same booking run at the same time, only one of them updates a row and
     // the plates are never given back twice.
@@ -167,8 +267,6 @@ export async function cancelBooking(
         "Only a booking that is still BOOKED can be cancelled.",
       );
     }
-
-    const beforeCutoff = new Date() < booking.offering.service.cutoffAt;
 
     if (beforeCutoff) {
       // LEAST keeps quantityLeft from going past quantityTotal.

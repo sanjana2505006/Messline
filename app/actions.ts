@@ -14,14 +14,21 @@ export async function bookPlatesAction(formData: FormData) {
 
   const offeringId = String(formData.get("offeringId") ?? "");
   const count = Number(formData.get("count"));
+  const redirectTo = String(formData.get("redirectTo") ?? "/");
+
+  const isUpdate = formData.get("isUpdate") === "1";
 
   const result = await bookPlates(user.id, offeringId, count);
 
   revalidatePath("/");
+  revalidatePath("/bookings");
+
+  const targetPath = redirectTo.startsWith("/bookings") ? "/bookings" : "/";
 
   if (!result.ok) {
-    redirect(`/?error=${result.reason}`);
+    redirect(`${targetPath}?error=${result.reason}`);
   }
 
-  redirect("/?booked=1");
+  const successParam = isUpdate ? "updated=1" : "booked=1";
+  redirect(`${targetPath}?${successParam}`);
 }

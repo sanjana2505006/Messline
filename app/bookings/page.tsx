@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { cancelBooking, CancelBookingError } from "@/lib/booking";
 import { prisma } from "@/lib/db";
+import { bookPlatesAction } from "@/app/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,13 @@ const cancelMessages: Record<string, string> = {
   cancelled: "Cancelled.",
   "not-found": "Booking not found.",
   "not-booked": "Only a booking that is still BOOKED can be cancelled.",
+  booked: "Booked.",
+  updated: "Booking updated.",
+  SOLD_OUT: "Sold out.",
+  CUTOFF_PASSED: "Booking closed.",
+  INVALID_COUNT: "Invalid count.",
+  NOT_FOUND: "Offering not found.",
+  NOT_PUBLISHED: "Booking closed.",
 };
 
 async function cancel(formData: FormData) {
@@ -76,7 +84,7 @@ async function cancel(formData: FormData) {
 export default async function BookingsPage({
   searchParams,
 }: {
-  searchParams: { message?: string };
+  searchParams: { message?: string; error?: string; booked?: string; updated?: string };
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -88,8 +96,12 @@ export default async function BookingsPage({
       id: true,
       count: true,
       status: true,
+      offeringId: true,
       offering: {
         select: {
+          id: true,
+          quantityLeft: true,
+          quantityTotal: true,
           menuItem: { select: { name: true } },
           service: {
             select: { meal: true, serviceDate: true, cutoffAt: true },
@@ -113,10 +125,14 @@ export default async function BookingsPage({
   });
 
   const now = new Date();
-  const message = searchParams.message
-    ? Object.hasOwn(cancelMessages, searchParams.message)
-      ? cancelMessages[searchParams.message]
-      : undefined
+  const messageKey =
+    searchParams.updated === "1"
+      ? "updated"
+      : searchParams.booked === "1"
+        ? "booked"
+        : searchParams.error ?? searchParams.message;
+  const message = messageKey && Object.hasOwn(cancelMessages, messageKey)
+    ? cancelMessages[messageKey]
     : undefined;
 
   return (
@@ -176,7 +192,30 @@ export default async function BookingsPage({
                       <span className="mr-2 text-xs text-neutral-500 sm:hidden">
                         Count
                       </span>
-                      {booking.count}
+                      {booked && beforeCutoff ? (
+                        <form action={bookPlatesAction} className="inline-flex items-center gap-1.5">
+                          <input type="hidden" name="offeringId" value={booking.offeringId} />
+                          <input type="hidden" name="redirectTo" value="/bookings" />
+                          <input type="hidden" name="isUpdate" value="1" />
+                          <input
+                            type="number"
+                            name="count"
+                            defaultValue={booking.count}
+                            min={1}
+                            max={booking.count + booking.offering.quantityLeft}
+                            className="w-14 rounded border border-neutral-300 px-1.5 py-0.5 text-xs"
+                            aria-label={`Adjust plates for ${booking.offering.menuItem.name}`}
+                          />
+                          <button
+                            type="submit"
+                            className="rounded bg-neutral-900 px-2 py-0.5 text-xs text-white hover:bg-neutral-800"
+                          >
+                            Update
+                          </button>
+                        </form>
+                      ) : (
+                        booking.count
+                      )}
                     </td>
                     <td className="block py-0.5 sm:table-cell sm:py-2 sm:pr-3">
                       <span className="mr-2 text-xs text-neutral-500 sm:hidden">

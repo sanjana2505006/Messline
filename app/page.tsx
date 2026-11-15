@@ -59,6 +59,7 @@ function ratingLabel(rating: Rating | undefined) {
 
 const bookingMessages: Record<string, string> = {
   booked: "Booked.",
+  updated: "Booking updated.",
   SOLD_OUT: "Sold out.",
   CUTOFF_PASSED: "Booking closed.",
   ALREADY_BOOKED: "Already booked.",
@@ -71,16 +72,18 @@ const bookingMessages: Record<string, string> = {
 export default async function Home({
   searchParams,
 }: {
-  searchParams?: { booked?: string; error?: string; message?: string };
+  searchParams?: { booked?: string; updated?: string; error?: string; message?: string };
 }) {
   const message =
-    searchParams?.booked === "1"
-      ? bookingMessages.booked
-      : searchParams?.error && Object.hasOwn(bookingMessages, searchParams.error)
-        ? bookingMessages[searchParams.error]
-        : searchParams?.message && Object.hasOwn(bookingMessages, searchParams.message)
-          ? bookingMessages[searchParams.message]
-          : undefined;
+    searchParams?.updated === "1"
+      ? bookingMessages.updated
+      : searchParams?.booked === "1"
+        ? bookingMessages.booked
+        : searchParams?.error && Object.hasOwn(bookingMessages, searchParams.error)
+          ? bookingMessages[searchParams.error]
+          : searchParams?.message && Object.hasOwn(bookingMessages, searchParams.message)
+            ? bookingMessages[searchParams.message]
+            : undefined;
 
   let rows: {
     id: string;
@@ -97,6 +100,7 @@ export default async function Home({
     service: { meal: string; serviceDate: Date; cutoffAt: Date };
   }[] = [];
   const ratings = new Map<string, Rating>();
+  const studentBookings = new Map<string, { id: string; count: number }>();
   let dbDown = false;
   const user = await getCurrentUser();
 
@@ -124,6 +128,20 @@ export default async function Home({
         { menuItem: { name: "asc" } },
       ],
     });
+
+    if (user && user.role === "STUDENT" && rows.length > 0) {
+      const activeBookings = await prisma.booking.findMany({
+        where: {
+          userId: user.id,
+          status: "BOOKED",
+          offeringId: { in: rows.map((r) => r.id) },
+        },
+        select: { offeringId: true, id: true, count: true },
+      });
+      for (const b of activeBookings) {
+        studentBookings.set(b.offeringId, { id: b.id, count: b.count });
+      }
+    }
 
     // The database does the averaging, so no review rows are loaded.
     const grouped = await prisma.review.groupBy({
@@ -226,6 +244,7 @@ export default async function Home({
             {rows.map((row) => {
               const isPastCutoff = new Date() >= row.service.cutoffAt;
               const isOpen = row.quantityLeft > 0 && !isPastCutoff;
+              const existingBooking = studentBookings.get(row.id);
 
               return (
                 <tr key={row.id} className="border-b border-neutral-200">
@@ -273,31 +292,72 @@ export default async function Home({
                   </td>
                   {user?.role === "STUDENT" && (
                     <td className="py-2 pl-3">
-                      {isOpen && (
-                        <form
-                          action={bookPlatesAction}
-                          className="flex items-center gap-2"
-                        >
-                          <input
-                            type="hidden"
-                            name="offeringId"
-                            value={row.id}
-                          />
-                          <input
-                            type="number"
-                            name="count"
-                            defaultValue={1}
-                            min={1}
-                            className="w-16 rounded border border-neutral-300 px-2 py-1 text-sm"
-                            aria-label={`Plates for ${row.menuItem.name}`}
-                          />
-                          <button
-                            type="submit"
-                            className="rounded bg-neutral-900 px-3 py-1 text-sm text-white hover:bg-neutral-800"
+                      {existingBooking ? (
+                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                          <span className="text-xs text-neutral-600">
+                            Booked: <strong>{existingBooking.count}</strong>
+                          </span>
+                          {!isPastCutoff && (
+                            <form
+                              action={bookPlatesAction}
+                              className="flex items-center gap-2"
+                            >
+                              <input
+                                type="hidden"
+                                name="offeringId"
+                                value={row.id}
+                              />
+                              <input
+                                type="hidden"
+                                name="isUpdate"
+                                value="1"
+                              />
+                              <input
+                                type="number"
+                                name="count"
+                                defaultValue={existingBooking.count}
+                                min={1}
+                                max={existingBooking.count + row.quantityLeft}
+                                className="w-16 rounded border border-neutral-300 px-2 py-1 text-sm"
+                                aria-label={`Plates for ${row.menuItem.name}`}
+                              />
+                              <button
+                                type="submit"
+                                className="rounded bg-neutral-900 px-3 py-1 text-sm text-white hover:bg-neutral-800"
+                              >
+                                Update count
+                              </button>
+                            </form>
+                          )}
+                        </div>
+                      ) : (
+                        isOpen && (
+                          <form
+                            action={bookPlatesAction}
+                            className="flex items-center gap-2"
                           >
-                            Book
-                          </button>
-                        </form>
+                            <input
+                              type="hidden"
+                              name="offeringId"
+                              value={row.id}
+                            />
+                            <input
+                              type="number"
+                              name="count"
+                              defaultValue={1}
+                              min={1}
+                              max={row.quantityLeft}
+                              className="w-16 rounded border border-neutral-300 px-2 py-1 text-sm"
+                              aria-label={`Plates for ${row.menuItem.name}`}
+                            />
+                            <button
+                              type="submit"
+                              className="rounded bg-neutral-900 px-3 py-1 text-sm text-white hover:bg-neutral-800"
+                            >
+                              Book
+                            </button>
+                          </form>
+                        )
                       )}
                     </td>
                   )}
