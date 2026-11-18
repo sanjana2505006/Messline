@@ -62,23 +62,23 @@ async function rateDish(formData: FormData) {
   }
 
   await prisma.review.upsert({
-    where: {
-      userId_menuItemId: {
-        userId: currentUser.id,
-        menuItemId: currentDish.id,
-      },
-    },
-    update: {
-      stars: parsed.data.stars,
-      body: parsed.data.body,
-    },
-    create: {
+  where: {
+    userId_menuItemId: {
       userId: currentUser.id,
       menuItemId: currentDish.id,
-      stars: parsed.data.stars,
-      body: parsed.data.body,
+    },
   },
-  });
+  update: {
+    stars: parsed.data.stars,
+    body: parsed.data.body,
+  },
+  create: {
+    userId: currentUser.id,
+    menuItemId: currentDish.id,
+    stars: parsed.data.stars,
+    body: parsed.data.body,
+  },
+});
 
   revalidatePath(`/dishes/${currentDish.id}`);
   revalidatePath("/");
