@@ -26,6 +26,7 @@ const rateSchema = z.object({
     }
     return val;
   }, z.number().int().min(1).max(5)),
+  body: z.string().trim().max(500).optional().transform((body) => body || null),
 });
 
 async function rateDish(formData: FormData) {
@@ -37,9 +38,10 @@ async function rateDish(formData: FormData) {
   }
 
   const parsed = rateSchema.safeParse({
-    dishId: formData.get("dishId"),
-    stars: formData.get("stars"),
-  });
+  dishId: formData.get("dishId"),
+  stars: formData.get("stars"),
+  body: formData.get("body") ?? undefined,
+});
 
   if (!parsed.success) {
     throw new Error("Invalid rating: stars must be an integer from 1 to 5.");
@@ -63,12 +65,14 @@ async function rateDish(formData: FormData) {
     },
     update: {
       stars: parsed.data.stars,
+      body: parsed.data.body,
     },
     create: {
       userId: currentUser.id,
       menuItemId: currentDish.id,
       stars: parsed.data.stars,
-    },
+      body: parsed.data.body,
+  },
   });
 
   revalidatePath(`/dishes/${currentDish.id}`);
@@ -134,7 +138,19 @@ export default async function DishPage({
         },
       })
     : null;
-
+  const reviews = await prisma.review.findMany({
+  where: { menuItemId: dish.id },
+  include: {
+    user: {
+      select: {
+        name: true,
+      },
+    },
+  },
+  orderBy: {
+    createdAt: "desc",
+  },
+});
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <p className="mb-6 text-sm">
@@ -197,7 +213,24 @@ export default async function DishPage({
               ))}
             </div>
           </fieldset>
+              <div className="mt-4">
+  <label
+    htmlFor="body"
+    className="block text-sm font-medium text-neutral-900"
+  >
+    Your feedback (optional)
+  </label>
 
+  <textarea
+    id="body"
+    name="body"
+    rows={4}
+    maxLength={500}
+    placeholder="Add a comment (optional)..."
+    defaultValue={existingReview?.body ?? ""}
+    className="mt-2 w-full rounded-md border border-neutral-300 p-3 text-sm focus:border-neutral-900 focus:outline-none"
+  />
+</div>
           <button
             type="submit"
             className="mt-4 rounded bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800"
@@ -206,6 +239,50 @@ export default async function DishPage({
           </button>
         </form>
       )}
+            <section className="mt-10 border-t border-neutral-200 pt-6">
+        <h2 className="text-xl font-semibold text-neutral-900">
+          Reviews
+        </h2>
+
+        {reviews.length === 0 ? (
+          <p className="mt-4 text-sm text-neutral-600">
+            No reviews yet.
+          </p>
+        ) : (
+          <div className="mt-5 space-y-5">
+            {reviews.map((review) => (
+              <article
+                key={review.id}
+                className="border-b border-neutral-200 pb-5"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <h3 className="text-sm font-semibold text-neutral-900">
+                    {review.user.name ?? "Anonymous"}
+                  </h3>
+
+                  <span className="text-sm font-medium text-neutral-700">
+                    {review.stars} / 5 stars
+                  </span>
+                </div>
+
+                <p className="mt-1 text-xs text-neutral-500">
+                  {review.createdAt.toLocaleDateString("en-IN", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </p>
+
+                {review.body && (
+                  <p className="mt-3 text-sm leading-6 text-neutral-700">
+                    {review.body}
+                  </p>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
     </main>
   );
 }
