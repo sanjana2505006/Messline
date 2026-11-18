@@ -62,7 +62,6 @@ const bookingMessages: Record<string, string> = {
   updated: "Booking updated.",
   SOLD_OUT: "Sold out.",
   CUTOFF_PASSED: "Booking closed.",
-  ALREADY_BOOKED: "Already booked.",
   INVALID_COUNT: "Invalid count.",
   NOT_FOUND: "Offering not found.",
   NOT_PUBLISHED: "Booking closed.",

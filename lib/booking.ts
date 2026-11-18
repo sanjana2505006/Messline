@@ -248,31 +248,39 @@ export async function cancelBooking(
 
     const beforeCutoff = serviceCheck.length > 0 && serviceCheck[0].is_before_cutoff;
 
-    // 4. Update the booking status.
-    // The status check sits in the WHERE clause, so if two cancels for the
-    // same booking run at the same time, only one of them updates a row and
-    // the plates are never given back twice.
-    const updated = await tx.booking.updateMany({
-      where: {
-        id: booking.id,
-        userId: parsed.data.userId,
-        status: BookingStatus.BOOKED,
-      },
-      data: { status: BookingStatus.CANCELLED },
-    });
+    // 4. Update the booking status and obtain the latest count after acquiring the Offering lock.
+    // We execute a conditional UPDATE on Booking conditioned on status = 'BOOKED' that returns
+    // the actual count from the row transitioned. This ensures that if a concurrent bookPlates()
+    // modified the plate count before the Offering lock was acquired, the cancellation releases
+    // exactly the latest count rather than a stale pre-lock value.
+    const transitioned = await tx.$queryRaw<
+      Array<{
+        id: string;
+        count: number;
+      }>
+    >`
+      UPDATE "Booking"
+      SET "status" = 'CANCELLED'::"BookingStatus", "updatedAt" = clock_timestamp()
+      WHERE id = ${booking.id}
+        AND "userId" = ${parsed.data.userId}
+        AND "status" = 'BOOKED'::"BookingStatus"
+      RETURNING id, count
+    `;
 
-    if (updated.count === 0) {
+    if (transitioned.length === 0) {
       throw new CancelBookingError(
         "NOT_BOOKED",
         "Only a booking that is still BOOKED can be cancelled.",
       );
     }
 
+    const latestCount = transitioned[0].count;
+
     if (beforeCutoff) {
       // LEAST keeps quantityLeft from going past quantityTotal.
       await tx.$executeRaw`
         UPDATE "Offering"
-        SET "quantityLeft" = LEAST("quantityLeft" + ${booking.count}, "quantityTotal")
+        SET "quantityLeft" = LEAST("quantityLeft" + ${latestCount}, "quantityTotal")
         WHERE id = ${booking.offeringId}
       `;
     }
