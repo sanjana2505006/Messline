@@ -1,16 +1,10 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { clearSession, getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { bookPlatesAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-async function signOut() {
-  "use server";
-  clearSession();
-  redirect("/");
-}
 // serviceDate is stored as midnight UTC of the local day (same as calendarDate in prisma/seed.ts)
 function calendarDate(offsetDays: number) {
   const now = new Date();
@@ -164,54 +158,26 @@ export default async function Home({
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <h1 className="text-2xl font-semibold">Messline</h1>
-      <div className="mt-2 text-sm">
-        {user ? (
-          <form action={signOut} className="flex items-center gap-3">
-            <span>Signed in as {user.name} ({user.role.toLowerCase()})</span>
-            {user.role === "STUDENT" && (
-              <>
-                <Link href="/bookings" className="underline">
-                  My bookings
-                </Link>
-                <Link href="/complaints" className="underline">
-                  Complaints
-                </Link>
-              </>
-            )}
-            {user.role === "KITCHEN" && (
-              <>
-                <Link href="/kitchen" className="underline">
-                  Kitchen
-                </Link>
-                <Link href="/kitchen/bookings" className="underline">
-                  Bookings
-                </Link>
-              </>
-            )}
-            {user.role === "SECRETARY" && (
-              <Link href="/secretary/complaints" className="underline">
-                Complaints
-              </Link>
-            )}
-            <button type="submit" className="underline">
-              Sign out
-            </button>
-          </form>
-        ) : (
-          <Link href="/login" className="underline">
-            Sign in
-          </Link>
-        )}
-      </div>
       <p className="mt-2 text-sm leading-6 text-neutral-700">
         Sign-in, ratings, bookings, and complaints work. Take a task from an issue.
       </p>
 
-      {message && (
-        <p role="status" className="mt-4 text-sm font-medium">
-          {message}
-        </p>
-      )}
+      {message &&
+        (message === bookingMessages.booked ? (
+          <p
+            role="status"
+            className="mt-4 rounded border border-green-200 bg-green-50 p-3 text-sm text-green-700"
+          >
+            {message}
+          </p>
+        ) : (
+          <p
+            role="alert"
+            className="mt-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+          >
+            {message}
+          </p>
+        ))}
 
       {dbDown ? (
         <p className="mt-6 text-sm">
@@ -220,20 +186,20 @@ export default async function Home({
       ) : rows.length === 0 ? (
         <p className="mt-6 text-sm">No published offerings found.</p>
       ) : (
-        <div className="mt-6 overflow-x-auto">
+        <div className="mt-6 overflow-x-auto rounded-lg border border-neutral-200 bg-white shadow-sm">
           <table className="w-full border-collapse text-left text-sm">
             <caption className="sr-only">Menu</caption>
           <thead>
-            <tr className="border-b border-neutral-300">
-              <th scope="col" className="py-2 pr-3 font-medium">When</th>
-              <th scope="col" className="py-2 pr-3 font-medium">Cutoff</th>
-              <th scope="col" className="py-2 pr-3 font-medium">Item</th>
-              <th scope="col" className="py-2 pr-3 font-medium">Ingredients</th>
-              <th scope="col" className="py-2 pr-3 font-medium">Price</th>
-              <th scope="col" className="py-2 pr-3 font-medium">Rating</th>
-              <th scope="col" className="py-2 font-medium">Left</th>
+            <tr className="border-b border-neutral-300 bg-neutral-50">
+              <th scope="col" className="py-2 pl-3 pr-3 text-xs uppercase tracking-wide text-neutral-500">When</th>
+              <th scope="col" className="py-2 pr-3 text-xs uppercase tracking-wide text-neutral-500">Cutoff</th>
+              <th scope="col" className="py-2 pr-3 text-xs uppercase tracking-wide text-neutral-500">Item</th>
+              <th scope="col" className="hidden py-2 pr-3 text-xs uppercase tracking-wide text-neutral-500 sm:table-cell">Ingredients</th>
+              <th scope="col" className="py-2 pr-3 text-xs uppercase tracking-wide text-neutral-500">Price</th>
+              <th scope="col" className="py-2 pr-3 text-xs uppercase tracking-wide text-neutral-500">Rating</th>
+              <th scope="col" className="py-2 pr-3 text-xs uppercase tracking-wide text-neutral-500">Left</th>
               {user?.role === "STUDENT" && (
-                <th scope="col" className="py-2 pl-3 font-medium">
+                <th scope="col" className="py-2 pl-3 pr-3 text-xs uppercase tracking-wide text-neutral-500">
                   <span className="sr-only">Book</span>
                 </th>
               )}
@@ -246,13 +212,19 @@ export default async function Home({
               const existingBooking = studentBookings.get(row.id);
 
               return (
-                <tr key={row.id} className="border-b border-neutral-200">
-                  <td className="py-2 pr-3">
+                <tr key={row.id} className="border-b border-neutral-200 hover:bg-neutral-50">
+                  <td className="py-2 pl-3 pr-3">
                     {dayLabel(row.service.serviceDate)} {mealLabel(row.service.meal)}
                   </td>
                   <td className="py-2 pr-3">
                     {formatCutoff(row.service.cutoffAt)}
-                    <span className="ml-2 text-neutral-500">
+                    <span
+                      className={`ml-2 inline-block whitespace-nowrap rounded px-1.5 py-0.5 text-xs font-medium ${
+                        isPastCutoff
+                          ? "bg-neutral-100 text-neutral-600"
+                          : "bg-emerald-50 text-emerald-700"
+                      }`}
+                    >
                       {isPastCutoff ? "cutoff passed" : "cutoff upcoming"}
                     </span>
                   </td>
@@ -271,7 +243,7 @@ export default async function Home({
                       </div>
                     )}
                   </td>
-                  <td className="py-2 pr-3 text-neutral-700">
+                  <td className="hidden py-2 pr-3 text-neutral-700 sm:table-cell">
                     {row.menuItem.ingredients}
                   </td>
                   <td className="py-2 pr-3">
@@ -280,13 +252,17 @@ export default async function Home({
                   <td className="py-2 pr-3">
                     {ratingLabel(ratings.get(row.menuItemId))}
                   </td>
-                  <td className="py-2">
+                  <td className="py-2 pr-3">
                     {row.quantityLeft} / {row.quantityTotal}
                     {row.quantityLeft === 0 && (
-                      <span className="ml-2 text-neutral-500">sold out</span>
+                      <span className="ml-2 inline-block whitespace-nowrap rounded bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-700">
+                        sold out
+                      </span>
                     )}
                     {row.quantityLeft > 0 && row.quantityLeft <= 5 && (
-                      <span className="ml-2 text-neutral-500">few left</span>
+                      <span className="ml-2 inline-block whitespace-nowrap rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-800">
+                        few left
+                      </span>
                     )}
                   </td>
                   {user?.role === "STUDENT" && (
@@ -334,6 +310,28 @@ export default async function Home({
                           <form
                             action={bookPlatesAction}
                             className="flex items-center gap-2"
+                    <td className="py-2 pl-3 pr-3">
+                      {isOpen && (
+                        <form
+                          action={bookPlatesAction}
+                          className="flex items-center gap-2"
+                        >
+                          <input
+                            type="hidden"
+                            name="offeringId"
+                            value={row.id}
+                          />
+                          <input
+                            type="number"
+                            name="count"
+                            defaultValue={1}
+                            min={1}
+                            className="w-16 rounded border border-neutral-300 px-2 py-1 text-sm"
+                            aria-label={`Plates for ${row.menuItem.name}`}
+                          />
+                          <button
+                            type="submit"
+                            className="rounded bg-neutral-900 px-3 py-1 text-sm text-white hover:bg-neutral-800"
                           >
                             <input
                               type="hidden"
