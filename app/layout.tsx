@@ -47,12 +47,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                       <Link href="/kitchen/bookings" className="underline">
                         Bookings
                       </Link>
+                      <Link href="/kitchen/reports" className="underline">
+                        Reports
+                      </Link>
                     </>
                   )}
                   {user.role === "SECRETARY" && (
-                    <Link href="/secretary/complaints" className="underline">
-                      Complaints
-                    </Link>
+                    <>
+                      <Link href="/secretary/complaints" className="underline">
+                        Complaints
+                      </Link>
+                      <Link href="/kitchen/reports" className="underline">
+                        Reports
+                      </Link>
+                    </>
                   )}
                   <form action={signOut}>
                     <button type="submit" className="underline">
