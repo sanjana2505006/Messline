@@ -12,9 +12,10 @@ export async function signOut() {
 }
 
 export async function bookPlatesAction(formData: FormData) {
+  const returnUrl = String(formData.get("returnUrl") || "/");
   const user = await getCurrentUser();
   if (!user || user.role !== Role.STUDENT) {
-    redirect("/?error=NOT_STUDENT");
+    redirect(`${returnUrl}?error=NOT_STUDENT`);
   }
 
   const offeringId = String(formData.get("offeringId") ?? "");
@@ -23,10 +24,11 @@ export async function bookPlatesAction(formData: FormData) {
   const result = await bookPlates(user.id, offeringId, count);
 
   revalidatePath("/");
+  revalidatePath("/schedule");
 
   if (!result.ok) {
-    redirect(`/?error=${result.reason}`);
+    redirect(`${returnUrl}?error=${result.reason}`);
   }
 
-  redirect("/?booked=1");
+  redirect(`${returnUrl}?booked=1`);
 }

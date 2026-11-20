@@ -20,9 +20,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className={`${inter.className} flex min-h-screen flex-col`}>
         <header className="border-b border-neutral-200 bg-white">
           <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-3">
-            <Link href="/" className="font-semibold">
-              Messline
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link href="/" className="font-semibold">
+                Messline
+              </Link>
+              <Link href="/schedule" className="text-sm underline">
+                Schedule
+              </Link>
+            </div>
             <div className="flex items-center gap-3 text-sm">
               {user ? (
                 <>
