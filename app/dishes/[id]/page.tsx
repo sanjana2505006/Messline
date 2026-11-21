@@ -130,6 +130,7 @@ export default async function DishPage({
 }) {
   const dish = await prisma.menuItem.findUnique({
     where: { id: params.id },
+    include: { reviews: true },
   });
 
   if (!dish || !dish.active) {
@@ -205,6 +206,25 @@ export default async function DishPage({
           )}
         </p>
       </div>
+
+
+      {dish.reviews.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {dish.reviews.map((review) => {
+            const stars = review.stars;
+            return (
+              <span key={review.id} className="text-sm">
+                <span aria-hidden="true" className="text-amber-500">
+                  {starString(stars)}
+                </span>
+                <span className="sr-only">
+                  {stars} out of 5 stars
+                </span>
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       {searchParams?.saved === "1" && (
         <p role="status" className="mt-4 text-sm font-medium">
