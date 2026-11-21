@@ -204,6 +204,7 @@ export default async function KitchenBookingsPage() {
         services={serviceGroups}
         defaultServiceId={defaultServiceId}
       />
+
     </main>
   );
 }
