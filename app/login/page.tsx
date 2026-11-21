@@ -48,11 +48,19 @@ export default async function LoginPage({
       <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-semibold">Sign in</h1>
 
+
+      {searchParams.error ? (
+        <p id={errorId} role="alert" className="mt-4 rounded border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          Wrong email or password.
+        </p>
+      ) : null}
+
         {searchParams.error ? (
           <p id={errorId} role="alert" className="mt-4 text-sm text-red-700">
             Wrong email or password.
           </p>
         ) : null}
+
 
         <form action={login} className="mt-6 space-y-4">
           <label className="block text-sm">
