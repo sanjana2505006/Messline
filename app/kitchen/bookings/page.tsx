@@ -182,6 +182,68 @@ export default async function KitchenBookingsPage() {
   });
 
   return (
+
+    <main className="mx-auto max-w-3xl px-6 py-10">
+      <h1 className="text-2xl font-semibold">Bookings</h1>
+      <p className="mt-2 text-sm text-neutral-700">
+        Mark each booking served or no-show after the meal.
+      </p>
+
+      {groups.size === 0 ? (
+        <p className="mt-6 text-sm">Nothing to mark.</p>
+      ) : (
+        Array.from(groups.entries()).map(([serviceId, group]) => (
+          <section key={serviceId} className="mt-8">
+            <h2 className="text-lg font-medium">
+              {mealLabel(group.meal)}, {dateLabel(group.serviceDate)}
+            </h2>
+            <span className="ml-2 text-sm font-normal text-neutral-500">
+              {group.rows.reduce((sum, row) => sum + row.count, 0)} plate{group.rows.reduce((sum, row) => sum + row.count, 0) !== 1 ? "s" : ""}
+            </span>
+            <ul className="mt-2 divide-y divide-neutral-200 border-y border-neutral-200 text-sm">
+              {group.rows.map((row) => (
+                <li
+                  key={row.id}
+                  className="flex flex-wrap items-center justify-between gap-3 py-2"
+                >
+                  <div>
+                    <div>{row.user.name}</div>
+                    <div className="text-xs text-neutral-500">
+                      {row.offering.menuItem.name} &times; {row.count}
+                    </div>
+                  </div>
+                  <form action={markBooking} className="flex gap-2">
+                    <input type="hidden" name="bookingId" value={row.id} />
+                    <button
+                      type="submit"
+                      name="status"
+                      value={BookingStatus.SERVED}
+                      className="rounded bg-neutral-900 px-3 py-1.5 text-white"
+                    >
+                      Served
+                    </button>
+                    <button
+                      type="submit"
+                      name="status"
+                      value={BookingStatus.NO_SHOW}
+                      className="rounded border border-neutral-300 px-3 py-1.5 hover:bg-neutral-100"
+                    >
+                      No-show
+                    </button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))
+      )}
+
+      <p className="mt-8 text-sm">
+        <Link href="/" className="underline">
+          Back to home
+        </Link>
+      </p>
+
     <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -204,6 +266,7 @@ export default async function KitchenBookingsPage() {
         services={serviceGroups}
         defaultServiceId={defaultServiceId}
       />
+
     </main>
   );
 }
