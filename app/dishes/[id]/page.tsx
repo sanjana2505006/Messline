@@ -272,6 +272,13 @@ export default async function DishPage({
         </form>
       )}
 
+      {existingReview && (
+        <p role="status" className="mt-4 rounded border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+          Saved.
+        </p>
+      )}
+
+
       <section className="mt-10 border-t border-neutral-200 pt-6">
         <h2 className="text-lg font-semibold text-neutral-900">Reviews</h2>
         {reviews.length === 0 ? (
@@ -301,6 +308,7 @@ export default async function DishPage({
           </ul>
         )}
       </section>
+
     </main>
   );
 }
