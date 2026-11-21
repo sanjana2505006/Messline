@@ -130,13 +130,13 @@ export default async function NewComplaintPage({
       </p>
 
       {searchParams.error === "invalid_body" && (
-        <p role="alert" className="mt-4 text-sm text-red-700">
+        <p role="alert" className="mt-4 rounded border-red-200 bg-red-50 p-3 text-sm text-red-700">
           Complaint body must be between 10 and 1000 characters.
         </p>
       )}
 
       {searchParams.error === "invalid_offering" && (
-        <p role="alert" className="mt-4 text-sm text-red-700">
+        <p role="alert" className="mt-4 rounded border-red-200 bg-red-50 p-3 text-sm text-red-700">
           The selected dish is not eligible for complaints.
         </p>
       )}
