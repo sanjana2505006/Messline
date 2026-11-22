@@ -1,3 +1,4 @@
+import { lockRebateStudent } from "./rebates";
 import { BookingStatus } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "./db";
@@ -5,6 +6,7 @@ import { prisma } from "./db";
 const countSchema = z.number().int().positive();
 
 export type BookingFailure =
+  | "ABSENCE_ACTIVE"
   | "INVALID_COUNT"
   | "NOT_FOUND"
   | "NOT_PUBLISHED"
@@ -34,6 +36,9 @@ export async function bookPlates(
 
   try {
     const booking = await prisma.$transaction(async (tx) => {
+      await lockRebateStudent(tx,userId);
+      const dates=await tx.offering.findUnique({where:{id:offeringId},select:{service:{select:{serviceDate:true}}}});
+      if(dates && await tx.absenceRebate.findFirst({where:{studentId:userId,status:{in:["PENDING","APPROVED","SETTLED"]},startDate:{lte:dates.service.serviceDate},endDate:{gte:dates.service.serviceDate}}}))throw new BookingError("ABSENCE_ACTIVE");
       // 1. The offering must exist, its service must be published,
       //    and the cutoff must not have passed.
       const offering = await tx.offering.findUnique({

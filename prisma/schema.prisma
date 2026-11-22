@@ -32,15 +32,19 @@ enum ComplaintStatus {
 }
 
 model User {
-  id         String      @id @default(cuid())
-  name       String
-  email      String      @unique
-  password   String
-  role       Role        @default(STUDENT)
-  createdAt  DateTime    @default(now())
-  bookings   Booking[]
-  complaints Complaint[]
-  reviews    Review[]
+  id           String          @id @default(cuid())
+  name         String
+  email        String          @unique
+  password     String
+  role         Role            @default(STUDENT)
+  createdAt    DateTime        @default(now())
+  bookings     Booking[]
+  complaints   Complaint[]
+  reviews      Review[]
+  absences     AbsenceRebate[] @relation("RebateStudent")
+  decisions    AbsenceRebate[] @relation("RebateApprover")
+  credits      RebateLedger[]
+  rebateAudits RebateAudit[]
 }
 
 model MenuItem {
@@ -85,15 +89,16 @@ model Offering {
 }
 
 model Booking {
-  id         String        @id @default(cuid())
-  userId     String
-  offeringId String
-  count      Int           @default(1)
-  status     BookingStatus @default(BOOKED)
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
-  user       User          @relation(fields: [userId], references: [id])
-  offering   Offering      @relation(fields: [offeringId], references: [id])
+  id            String         @id @default(cuid())
+  userId        String
+  offeringId    String
+  count         Int            @default(1)
+  status        BookingStatus  @default(BOOKED)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  user          User           @relation(fields: [userId], references: [id])
+  offering      Offering       @relation(fields: [offeringId], references: [id])
+  rebateLedgers RebateLedger[]
 }
 
 model Complaint {
@@ -121,4 +126,76 @@ model Review {
   menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
 
   @@unique([userId, menuItemId])
+}
+
+enum RebateStatus {
+  PENDING
+  APPROVED
+  SETTLED
+  REJECTED
+}
+
+model RebatePolicy {
+  id             String   @id @default("single-mess")
+  version        Int      @default(1)
+  minimumDays    Int      @default(2)
+  noticeHours    Int      @default(24)
+  breakfastPaise Int      @default(0)
+  lunchPaise     Int      @default(0)
+  dinnerPaise    Int      @default(0)
+  updatedAt      DateTime @updatedAt
+}
+
+model AbsenceRebate {
+  id             String        @id @default(cuid())
+  studentId      String
+  startDate      DateTime      @db.Date
+  endDate        DateTime      @db.Date
+  qualifyingDays Int
+  estimatedPaise Int
+  policySnapshot Json
+  status         RebateStatus  @default(PENDING)
+  reason         String
+  decisionReason String?
+  approvedById   String?
+  createdAt      DateTime      @default(now())
+  decidedAt      DateTime?
+  student        User          @relation("RebateStudent", fields: [studentId], references: [id])
+  approvedBy     User?         @relation("RebateApprover", fields: [approvedById], references: [id])
+  ledger         RebateLedger?
+  audits         RebateAudit[]
+
+  @@index([studentId, startDate, endDate])
+  @@index([status, createdAt])
+}
+
+model RebateLedger {
+  id          String        @id @default(cuid())
+  rebateId    String        @unique
+  studentId   String
+  amountPaise Int
+  details     Json
+  auditHash   String
+  createdAt   DateTime      @default(now())
+  rebate      AbsenceRebate @relation(fields: [rebateId], references: [id])
+  student     User          @relation(fields: [studentId], references: [id])
+  bookings    Booking[]
+
+  @@index([createdAt, studentId])
+}
+
+model RebateAudit {
+  id           String        @id @default(cuid())
+  rebateId     String
+  actorId      String
+  action       String
+  sequence     Int
+  details      Json
+  previousHash String?
+  auditHash    String        @unique
+  createdAt    DateTime      @default(now())
+  rebate       AbsenceRebate @relation(fields: [rebateId], references: [id])
+  actor        User          @relation(fields: [actorId], references: [id])
+
+  @@unique([rebateId, sequence])
 }

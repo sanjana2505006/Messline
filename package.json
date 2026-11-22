@@ -17,7 +17,11 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "db:reset": "prisma migrate reset --force"
+    "db:reset": "prisma migrate reset --force",
+    "test:rebates": "tsx --test tests/rebates.test.ts",
+    "test:rebates:integration": "tsx --test tests/rebates.integration.test.ts",
+    "rebates:reconcile": "tsx scripts/reconcile-rebates.ts",
+    "test:rebates:private": "node scripts/test-rebates-private.mjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -31,6 +31,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   </span>
                   {user.role === "STUDENT" && (
                     <>
+                      <Link href="/student/rebates" className="underline">Rebates</Link>
                       <Link href="/bookings" className="underline">
                         My bookings
                       </Link>
@@ -53,9 +54,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                     </>
                   )}
                   {user.role === "SECRETARY" && (
+                    <>
+                    <Link href="/secretary/rebates" className="underline">Rebates</Link>
                     <Link href="/secretary/complaints" className="underline">
                       Complaints
                     </Link>
+                    </>
                   )}
                   <form action={signOut}>
                     <button type="submit" className="underline">

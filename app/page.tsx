@@ -53,6 +53,7 @@ function ratingLabel(rating: Rating | undefined) {
 
 const bookingMessages: Record<string, string> = {
   booked: "Booked.",
+  ABSENCE_ACTIVE: "An active absence application covers this date. Contact the secretary before booking.",
   SOLD_OUT: "Sold out.",
   CUTOFF_PASSED: "Booking closed.",
   ALREADY_BOOKED: "Already booked.",
