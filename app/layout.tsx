@@ -44,6 +44,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                       <Link href="/kitchen" className="underline">
                         Kitchen
                       </Link>
+                      <Link href="/kitchen/weekly" className="underline">
+                        Weekly
+                      </Link>
                       <Link href="/kitchen/bookings" className="underline">
                         Bookings
                       </Link>
