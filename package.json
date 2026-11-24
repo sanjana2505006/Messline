@@ -6,6 +6,7 @@
     "race:booking": "tsx scripts/race-booking.ts",
     "cancel:booking": "tsx scripts/cancel-booking.ts",
     "test:prep": "tsx scripts/test-prep.ts",
+    "test:reports": "tsx scripts/test-reports.ts",
     "dev": "next dev -p 3001",
     "build": "prisma generate && next build",
     "start": "next start -p 3001",
