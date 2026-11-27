@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BookingStatus, Meal, Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { getServiceCalendarDate } from "@/lib/service-date";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookingToken } from "@/lib/attendance";
 import {
@@ -17,12 +18,9 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-// serviceDate is stored as midnight UTC of the local day (same as calendarDate in app/page.tsx)
+// serviceDate is stored as midnight UTC of the IST service day.
 function calendarDate(offsetDays: number) {
-  const now = new Date();
-  return new Date(
-    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + offsetDays)
-  );
+  return getServiceCalendarDate(new Date(), offsetDays);
 }
 
 function mealLabel(meal: string) {
