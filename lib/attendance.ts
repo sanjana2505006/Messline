@@ -1,6 +1,7 @@
 import { BookingStatus, Role } from "@prisma/client";
 import { prisma } from "./db";
 import { getCurrentUser } from "./auth";
+import { getServiceCalendarDate } from "./service-date";
 
 /**
  * Custom error class for attendance-related domain errors.
@@ -13,10 +14,9 @@ export class AttendanceError extends Error {
   }
 }
 
-// serviceDate is stored as midnight UTC of the local day (same as calendarDate in app/page.tsx)
+// serviceDate is stored as midnight UTC of the IST service day.
 function todayUtc(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  return getServiceCalendarDate(new Date());
 }
 
 /**
