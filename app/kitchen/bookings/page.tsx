@@ -5,6 +5,7 @@ import { BookingStatus, Meal, Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookingToken } from "@/lib/attendance";
+import { getISTServiceDate, isServiceDateTodayOrPast } from "@/lib/service-date";
 import {
   KitchenCounterVerification,
   ServiceGroupData,
@@ -17,12 +18,8 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-// serviceDate is stored as midnight UTC of the local day (same as calendarDate in app/page.tsx)
 function calendarDate(offsetDays: number) {
-  const now = new Date();
-  return new Date(
-    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + offsetDays)
-  );
+  return getISTServiceDate(new Date(), offsetDays);
 }
 
 function mealLabel(meal: string) {
@@ -176,7 +173,7 @@ export default async function KitchenBookingsPage() {
       cutoffAtStr: service.cutoffAt.toISOString(),
       isToday,
       isCutoffPassed: now >= service.cutoffAt,
-      canMarkAttendance: service.serviceDate.getTime() <= todayMidnight,
+      canMarkAttendance: isServiceDateTodayOrPast(service.serviceDate, now),
       bookings,
     };
   });

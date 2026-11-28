@@ -1,5 +1,6 @@
 import { BookingStatus, ComplaintStatus, Meal, PrismaClient, Role } from "@prisma/client";
 import { hash } from "bcryptjs";
+import { getISTServiceDate } from "../lib/service-date";
 
 const prisma = new PrismaClient();
 
@@ -12,12 +13,7 @@ const prisma = new PrismaClient();
 // Bookings: Meera has one BOOKED booking, 1 veg thali at today's lunch (veg thali shows 39 / 40).
 
 function calendarDate(offsetDays: number) {
-  const now = new Date();
-  now.setDate(now.getDate() + offsetDays);
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return new Date(`${y}-${m}-${d}T00:00:00.000Z`);
+  return getISTServiceDate(new Date(), offsetDays);
 }
 
 async function main() {

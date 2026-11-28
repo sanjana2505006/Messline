@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { Meal, Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { getISTServiceDate } from "@/lib/service-date";
 import {
   createService,
   parseCreateServiceFormData,
@@ -31,10 +32,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 };
 
 function calendarDate(offsetDays: number) {
-  const now = new Date();
-  return new Date(
-    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + offsetDays)
-  );
+  return getISTServiceDate(new Date(), offsetDays);
 }
 
 function dayLabel(d: Date) {
@@ -133,9 +131,7 @@ export default async function KitchenPage({
   });
 
   const now = new Date();
-  const todayUtc = new Date(
-    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
-  );
+  const todayUtc = getISTServiceDate(now);
 
   const upcomingServices = await prisma.service.findMany({
     where: {

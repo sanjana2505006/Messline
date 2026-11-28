@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { cancelBooking, CancelBookingError } from "@/lib/booking";
 import { getBookingToken } from "@/lib/attendance";
 import { prisma } from "@/lib/db";
+import { getISTServiceDate } from "@/lib/service-date";
 
 export const dynamic = "force-dynamic";
 
@@ -13,12 +14,8 @@ export const metadata: Metadata = {
   title: "My bookings | Messline",
 };
 
-// serviceDate is stored as midnight UTC of the local day (same as calendarDate in prisma/seed.ts)
 function calendarDate(offsetDays: number) {
-  const now = new Date();
-  return new Date(
-    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + offsetDays),
-  );
+  return getISTServiceDate(new Date(), offsetDays);
 }
 
 function dayLabel(d: Date) {

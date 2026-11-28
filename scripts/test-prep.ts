@@ -267,6 +267,35 @@ assert.equal(isPastServiceDate(yesterdayService.serviceDate, now), true);
 assert.equal(isPastServiceDate(serviceDate, now), false);
 assert.equal(isTodayOrPastServiceDate(serviceDate, now), true);
 
+
+const earlyMorningIst = new Date("2026-11-23T20:30:00.000Z");
+const istTodayServiceDate = getTodayServiceDate(earlyMorningIst);
+assert.equal(
+  istTodayServiceDate.toISOString(),
+  "2026-11-24T00:00:00.000Z",
+  "prep selection uses the IST calendar day when UTC is still on the previous date",
+);
+const earlyMorningService = {
+  id: "ist-today",
+  serviceDate: istTodayServiceDate,
+  cutoffAt: new Date("2026-11-24T12:00:00.000Z"),
+};
+assert.equal(
+  resolvePrepService([earlyMorningService], undefined, earlyMorningIst).service?.id,
+  "ist-today",
+  "prep defaults to today's service during the early-morning IST window",
+);
+assert.equal(
+  isPastServiceDate(istTodayServiceDate, earlyMorningIst),
+  false,
+  "today's IST service is not treated as historical when UTC is on yesterday",
+);
+assert.equal(
+  isTodayOrPastServiceDate(istTodayServiceDate, earlyMorningIst),
+  true,
+  "today's IST service is reconciliation eligible",
+);
+
 const kitchenUser = { id: "k", name: "Kitchen", role: Role.KITCHEN };
 assert.equal(getPrepAccess(kitchenUser).allowed, true);
 assert.deepEqual(getPrepAccess(null), {

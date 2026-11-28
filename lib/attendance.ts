@@ -1,6 +1,7 @@
 import { BookingStatus, Role } from "@prisma/client";
 import { prisma } from "./db";
 import { getCurrentUser } from "./auth";
+import { getISTServiceDate } from "./service-date";
 
 /**
  * Custom error class for attendance-related domain errors.
@@ -13,10 +14,9 @@ export class AttendanceError extends Error {
   }
 }
 
-// serviceDate is stored as midnight UTC of the local day (same as calendarDate in app/page.tsx)
-function todayUtc(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+// Service dates are UTC midnights for IST calendar days; never use server-local date getters.
+function todayServiceDate(): Date {
+  return getISTServiceDate();
 }
 
 /**
@@ -65,7 +65,7 @@ export async function markServed(bookingId: string): Promise<void> {
         status: BookingStatus.BOOKED,
         offering: {
           service: {
-            serviceDate: { lte: todayUtc() },
+            serviceDate: { lte: todayServiceDate() },
           },
         },
       },
@@ -98,7 +98,7 @@ export async function markNoShow(bookingId: string): Promise<void> {
         status: BookingStatus.BOOKED,
         offering: {
           service: {
-            serviceDate: { lte: todayUtc() },
+            serviceDate: { lte: todayServiceDate() },
           },
         },
       },
