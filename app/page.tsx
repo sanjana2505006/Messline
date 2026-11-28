@@ -2,15 +2,12 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { bookPlatesAction } from "./actions";
+import { getISTServiceDate } from "@/lib/service-date";
 
 export const dynamic = "force-dynamic";
 
-// serviceDate is stored as midnight UTC of the local day (same as calendarDate in prisma/seed.ts)
 function calendarDate(offsetDays: number) {
-  const now = new Date();
-  return new Date(
-    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + offsetDays),
-  );
+  return getISTServiceDate(new Date(), offsetDays);
 }
 
 function dayLabel(d: Date) {

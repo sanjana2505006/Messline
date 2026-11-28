@@ -191,6 +191,8 @@ export async function createService(
 
   try {
     const result = await prisma.$transaction(async (tx) => {
+      // serviceDate is a validated YYYY-MM-DD calendar value; persist it at UTC midnight
+      // without converting it through the server timezone.
       const dateUtc = new Date(`${serviceDate}T00:00:00.000Z`);
       const cutoffDate = parseCutoffAsIST(cutoffAt);
 

@@ -19,6 +19,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
+      - name: IST service-date regression checks
+        run: npm run test:service-date
+      - name: Prep service-date regression checks
+        run: npm run test:prep
       - run: npx prisma validate
       - run: npm run lint
       - name: Production build

@@ -1,5 +1,6 @@
 import { BookingStatus, Role, type Meal } from "@prisma/client";
 import type { CurrentUser } from "@/lib/auth";
+import { getISTServiceDate } from "./service-date";
 
 export type PrepBooking = {
   count: number;
@@ -72,9 +73,7 @@ export function getPrepAccess(user: CurrentUser | null): PrepAccess {
 }
 
 export function getTodayServiceDate(now: Date): Date {
-  return new Date(
-    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()),
-  );
+  return getISTServiceDate(now);
 }
 
 export function resolvePrepService<T extends Pick<
